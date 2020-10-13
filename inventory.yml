@@ -1,0 +1,18 @@
+all:
+    children:
+        zone-1:
+            hosts:
+                192.168.2.40:
+                192.168.2.41:
+                192.168.2.42:
+        ece:
+            children:
+                allocators:
+                    hosts:
+                        192.168.2.42:
+                proxies:
+                    hosts:
+                        192.168.2.41:
+                directors:
+                    hosts:
+                        192.168.2.40:
