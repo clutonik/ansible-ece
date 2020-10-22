@@ -1,0 +1,6 @@
+---
+  - hosts: first_node
+    gather_facts: true
+    roles:
+        - pre-requisites
+        - ece-install

@@ -1,0 +1,245 @@
+---
+  - name: Collect Device information
+    become: yes
+    parted:
+      device: "{{ device_name }}"
+      unit: GB
+    register: device_info
+
+  - name: Determine Available groups
+    getent:
+        database: group
+
+  - name: Check if installation user exists
+    getent:
+      key: "{{ user_group }}"
+      database: passwd
+      fail_key: false
+
+  - name: Ensure User Groups exists
+    become: yes
+    group:
+        name: item
+        state: present
+    when: item not in ansible_facts.getent_group
+    with_items:
+        - "{{ user_group }}"
+        - docker
+
+  - name: Ensure Installation user exists
+    become: yes
+    user:
+        name: "{{ user_group }}"
+        group: "{{ user_group }}" 
+        groups: docker
+        append: yes
+        state: present
+        generate_ssh_key: true
+    when: getent_passwd["admin"] == none
+
+  - name: Set pwd policy
+    become: yes
+    lineinfile:
+      path: /etc/sudoers.d/99-ece-users
+      line: "{{ elastic_user }} ALL=(ALL) NOPASSWD:ALL"
+      state: present
+      create: true
+
+  - name: "Ensure group {{ elastic_user }} exists"
+    become: yes
+    group:
+      name: "{{ elastic_user }}"
+      gid: "91561"
+      state: present
+
+  - name: Add {{ elastic_user }} user account
+    become: yes
+    user:
+      name: "{{ elastic_user }}"
+      shell: /bin/bash
+      home: "{{ elastic_home }}"
+      group: "{{ elastic_user }}"
+      append: no
+
+  - name: get elastic user information
+    become: yes
+    getent:
+      database: passwd
+      key: "{{ elastic_user }}"
+      fail_key: yes
+    register: get_user
+    retries: 3
+    delay: 10
+    until: not get_user.failed
+
+  - name: "Create {{ filesystem_type }} filesystem on {{ device_name }}"
+    become: yes
+    filesystem:
+      fstype: "{{ filesystem_type }}"
+      dev: "{{ device_name }}"
+      force: yes
+    when: device_info.partitions[0].fstype != filesystem_type|string
+
+  - name: "Create ECE Directory"
+    become: yes
+    file:
+      path: "{{ data_dir }}"
+      state: directory
+      mode: '0755'
+      owner: "{{ elastic_user }}" 
+      group: "{{ elastic_user }}" 
+
+  - name: "mount {{ data_dir }}"
+    become: yes
+    mount:
+      path: "{{ data_dir }}"
+      src: "{{ device_name }}"
+      fstype: "{{ filesystem_type }}"
+      opts: "{{ fs_options }}"
+      state: mounted
+    when: "filesystem_type|string == 'xfs'"
+
+  # Install docker
+  - name: Add docker repository key
+    become: yes
+    apt_key:
+      url: "{{ docker_version_map[docker_version]['keys']['server'] }}"
+      id: "{{ docker_version_map[docker_version]['keys']['id'] }}"
+
+  - name: Add docker repository
+    become: yes
+    apt_repository:
+      repo: "{{ docker_version_map[docker_version]['repo'] }}"
+      state: present
+
+  - name: Install docker
+    become: yes
+    apt:
+      name: "{{ docker_version_map[docker_version]['package'] }}"
+      update_cache: yes
+      state: present
+
+  - name: Pin docker-engine packet
+    become: yes
+    shell: echo "docker-engine hold" | sudo dpkg --set-selections
+
+  - name: Enable docker service
+    become: yes
+    systemd:
+      name: docker
+      enabled: yes
+      state: started
+
+  - name: add vm.max_map_count
+    become: yes
+    sysctl:
+      name: vm.max_map_count
+      value: "262144"
+      state: present
+
+  - name: add fs.file-max
+    become: yes
+    sysctl:
+      name: fs.file-max
+      value: "10000000"
+      state: present
+      sysctl_set: yes
+
+  - name: add net.ipv4.ip_forward
+    become: yes
+    sysctl:
+      name: net.ipv4.ip_forward
+      value: "1"
+      state: present
+    notify: restart network service
+
+  - name: add net.ipv4.conf.all.accept_redirects
+    become: yes
+    sysctl:
+      name: net.ipv4.conf.all.accept_redirects
+      value: "0"
+      state: present
+    notify: restart network service
+
+  - name: add net.ipv4.conf.default.accept_source_route
+    become: yes
+    sysctl:
+      name: net.ipv4.conf.default.accept_source_route
+      value: "0"
+      state: present
+    notify: restart network service
+
+  - name: add net.ipv4.conf.all.log_martians
+    become: yes
+    sysctl:
+      name: net.ipv4.conf.all.log_martians
+      value: "1"
+      state: present
+    notify: restart network service
+
+  - name: add net.ipv4.conf.default.log_martians
+    become: yes
+    sysctl:
+      name: net.ipv4.conf.default.log_martians
+      value: "1"
+      state: present
+    notify: restart network service
+
+  - name: add net.ipv4.conf.all.secure_redirects 
+    become: yes
+    sysctl:
+      name: net.ipv4.conf.all.secure_redirects 
+      value: "0"
+      state: present
+    notify: restart network service
+
+  - name: add net.ipv4.conf.default.secure_redirects
+    become: yes
+    sysctl:
+      name: net.ipv4.conf.default.secure_redirects
+      value: "0"
+      state: present
+    notify: restart network service
+
+  - name: modify limits.conf
+    become: yes
+    blockinfile:
+      path: /etc/security/limits.conf
+      block: |
+        *                soft    nofile         1024000
+        *                hard    nofile         1024000
+        *                soft    memlock        unlimited
+        *                hard    memlock        unlimited
+        elastic          soft    nofile         1024000
+        elastic          hard    nofile         1024000
+        elastic          soft    memlock        unlimited
+        elastic          hard    memlock        unlimited
+        elastic          soft    nproc          25000
+        root             soft    nofile         1024000
+        root             hard    nofile         1024000
+        root             soft    memlock        unlimited
+
+  - name: "change {{ data_dir }} owner to elastic user ID"
+    become: yes
+    file:
+      path: "{{ data_dir }}"
+      state: directory
+      mode: 0755
+      owner: "{{ elastic_user }}"
+      group: "{{ elastic_user }}"
+
+  - name: "create {{ data_dir }}/docker folder"
+    become: yes
+    file:
+      path: "{{ data_dir }}/docker"
+      state: directory
+      mode: 0755
+      owner: "{{ elastic_user }}"
+      group: "{{ elastic_user }}"
+
+  - name: Adding elastic user to group docker
+    become: yes
+    user:
+      name: "{{ elastic_user }}"
+      groups: docker
+      append: yes

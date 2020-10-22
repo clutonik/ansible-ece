@@ -1,0 +1,40 @@
+---
+  - name: Download ECE Install Script from elastic
+    get_url:
+      url: "{{ ece_installer_url }}"
+      dest: /tmp/elastic-cloud-enterprise.sh
+      force: yes
+      validate_certs: false
+    delegate_to: localhost
+    register: script
+    retries: 3
+    delay: 10
+    when: not ansible_check_mode
+    until: script.changed 
+
+  - name: Make Script background Executable
+    replace:
+      path: /tmp/elastic-cloud-enterprise.sh
+      regexp: 'exec \-it'
+      replace: 'exec'
+      backup: no
+    delegate_to: localhost
+    when: script.changed and not ansible_check_mode
+
+  - name: copy_and_change_permissions_on_director_host
+    copy:
+      src: "/tmp/elastic-cloud-enterprise.sh"
+      dest: "/tmp/elastic-cloud-enterprise.sh"
+      owner: elastic
+      group: elastic
+      mode: 0744
+    become: yes
+    when: script.changed
+
+  - name: Check if runner directory is present on server.
+    become: yes
+    become_user: elastic
+    stat:
+      path: "/mnt/data/elastic/{{ runner_name }}"
+    register: runner_directories
+    changed_when: runner_directories.stat.isdir is not defined

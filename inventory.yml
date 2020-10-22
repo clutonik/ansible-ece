@@ -1,15 +1,21 @@
 all:
+    vars:
+        device_name: "/dev/sda3"
+        user_group: "admin"
     children:
         zone-1:
             hosts:
                 192.168.2.40:
                 192.168.2.41:
-                192.168.2.42:
+                192.168.2.46:
         ece:
             children:
+                first_node:
+                    hosts:
+                        192.168.2.40:
                 allocators:
                     hosts:
-                        192.168.2.42:
+                        192.168.2.46:
                 proxies:
                     hosts:
                         192.168.2.41:
