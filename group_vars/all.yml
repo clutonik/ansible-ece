@@ -1,17 +1,19 @@
 ---
 # General Elastic Cloud Enterprise relevant settings
-ece_version: 2.6.2
+ece_version: 2.4.3
 ece_docker_registry: docker.elastic.co
 ece_docker_repository: cloud-enterprise
 docker_config: ""
 ece_installer_url: "https://download.elastic.co/cloud/elastic-cloud-enterprise.sh"
 ece_runner_id: "{{ ansible_default_ipv4.address }}"
 
+ece_platform:
+  version: 2.4.3
 elastic_user: "elastic"
 elastic_home: "/home/elastic"
 filesystem_type: "xfs"
 fs_options: "defaults,nofail,pquota,prjquota"
-runner_name: "runner-{{ inventory_hostname_short }}"
+runner_name: "runner-{{ inventory_hostname }}"
 
 docker_storage_driver: overlay2
 docker_version: "19.03"
@@ -27,6 +29,8 @@ docker_version_map:
       id: 0EBFCD88
 
 # Overall setup variables (like package versions)
+package_manager: apt-get
+package_manager_options: "-y"
 device_name: "/dev/sda3"
 data_dir: /mnt/data
 force_xfc: false
@@ -38,12 +42,12 @@ system_limits_file: "/etc/security/limits.d/70-cloudenterprise.conf"
 # Memory settings
 memory:
   runner: 1G
-  allocator: 4G
-  proxy: 8G
-  zookeeper: 4G
+  allocator: 1G
+  proxy: 1G
+  zookeeper: 1G
   director: 1G
-  constructor: 4G
-  adminconsole: 4G
+  constructor: 1G
+  adminconsole: 2G
 
 # Elastic Cloud Enterprise - Support Diagnostics Settings
 ece_supportdiagnostics_url: "https://github.com/elastic/ece-support-diagnostics/archive/v1.1.tar.gz"

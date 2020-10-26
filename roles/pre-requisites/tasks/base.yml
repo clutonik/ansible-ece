@@ -10,33 +10,6 @@
     getent:
         database: group
 
-  - name: Check if installation user exists
-    getent:
-      key: "{{ user_group }}"
-      database: passwd
-      fail_key: false
-
-  - name: Ensure User Groups exists
-    become: yes
-    group:
-        name: item
-        state: present
-    when: item not in ansible_facts.getent_group
-    with_items:
-        - "{{ user_group }}"
-        - docker
-
-  - name: Ensure Installation user exists
-    become: yes
-    user:
-        name: "{{ user_group }}"
-        group: "{{ user_group }}" 
-        groups: docker
-        append: yes
-        state: present
-        generate_ssh_key: true
-    when: getent_passwd["admin"] == none
-
   - name: Set pwd policy
     become: yes
     lineinfile:
@@ -151,7 +124,6 @@
       name: net.ipv4.ip_forward
       value: "1"
       state: present
-    notify: restart network service
 
   - name: add net.ipv4.conf.all.accept_redirects
     become: yes
@@ -159,7 +131,6 @@
       name: net.ipv4.conf.all.accept_redirects
       value: "0"
       state: present
-    notify: restart network service
 
   - name: add net.ipv4.conf.default.accept_source_route
     become: yes
@@ -167,7 +138,6 @@
       name: net.ipv4.conf.default.accept_source_route
       value: "0"
       state: present
-    notify: restart network service
 
   - name: add net.ipv4.conf.all.log_martians
     become: yes
@@ -175,7 +145,6 @@
       name: net.ipv4.conf.all.log_martians
       value: "1"
       state: present
-    notify: restart network service
 
   - name: add net.ipv4.conf.default.log_martians
     become: yes
@@ -183,7 +152,6 @@
       name: net.ipv4.conf.default.log_martians
       value: "1"
       state: present
-    notify: restart network service
 
   - name: add net.ipv4.conf.all.secure_redirects 
     become: yes
@@ -191,7 +159,6 @@
       name: net.ipv4.conf.all.secure_redirects 
       value: "0"
       state: present
-    notify: restart network service
 
   - name: add net.ipv4.conf.default.secure_redirects
     become: yes
@@ -199,7 +166,6 @@
       name: net.ipv4.conf.default.secure_redirects
       value: "0"
       state: present
-    notify: restart network service
 
   - name: modify limits.conf
     become: yes

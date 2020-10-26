@@ -1,0 +1,17 @@
+---
+  - name: Install required packages
+    shell: "{{ package_manager}} {{ package_manager_options }} install {{ item }}"
+    with_items:
+      - golang-go
+
+  - name: Git checkout
+    git:
+        repo: 'https://github.com/clutonik/elastic-cloud-tools.git'
+        dest: /mnt/data/tools
+
+
+  # Build eceRolesToken script
+  - name: Build Go Code for ECE tools
+    shell: go build -o $HOME/go/bin/eceRolesToken eceRolesToken.go
+    args:
+        chdir: /mnt/data/tools/runners

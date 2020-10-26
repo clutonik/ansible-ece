@@ -1,0 +1,12 @@
+---
+  - hosts: first_node
+    gather_facts: true
+    roles:
+        - pre-requisites
+
+  - hosts: first_node
+    gather_facts: true
+    roles:
+        - ece-install
+    vars:
+      - primary: true
