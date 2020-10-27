@@ -1,18 +1,34 @@
 all:
+    vars:
+        device_name: "/dev/sda3"
+        user_group: "admin"
+        coordinator_host: "{{ coordinator_host }}" # Comes from extra_vars
     children:
         zone-1:
+            vars:
+                zone: "zone-1"
             hosts:
-                192.168.2.40:
+                192.168.2.47:
                 192.168.2.41:
-                192.168.2.42:
+                192.168.2.48:
         ece:
             children:
-                allocators:
+                first_node:
                     hosts:
-                        192.168.2.42:
+                        192.168.2.47:
+                            ece_primary: true
+                allocators:
+                    vars:
+                        role: "allocator"
+                    hosts:
+                        192.168.2.48:
                 proxies:
+                    vars:
+                        role: "proxy"
                     hosts:
                         192.168.2.41:
                 directors:
+                    vars:
+                        role: "director"
                     hosts:
-                        192.168.2.40:
+                        192.168.2.47:

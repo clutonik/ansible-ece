@@ -1,0 +1,59 @@
+---
+  - name: Download ECE Install Script from elastic
+    get_url:
+      url: "{{ ece_installer_url }}"
+      dest: /tmp/elastic-cloud-enterprise.sh
+      force: yes
+      validate_certs: false
+    delegate_to: localhost
+    register: script
+    retries: 3
+    delay: 10
+    when: not ansible_check_mode
+    until: script.changed 
+
+  - name: Make Script background Executable
+    replace:
+      path: /tmp/elastic-cloud-enterprise.sh
+      regexp: 'exec \-it'
+      replace: 'exec'
+      backup: no
+    delegate_to: localhost
+    when: script.changed and not ansible_check_mode
+
+  - name: copy_and_change_permissions_on_director_host
+    copy:
+      src: "/tmp/elastic-cloud-enterprise.sh"
+      dest: "/tmp/elastic-cloud-enterprise.sh"
+      owner: elastic
+      group: elastic
+      mode: 0744
+    become: yes
+    when: script.changed
+
+  - name: Check if runner directory is present on server.
+    become: yes
+    stat:
+      path: "/mnt/data/elastic/{{ runner_name }}"
+    register: runner_directories
+    changed_when: runner_directories.stat.isdir is not defined
+
+  - name: Create memory settings
+    set_fact:
+      memory_settings: ' {"runner":{"xms":"{{memory.runner}}","xmx":"{{memory.runner}}"},"proxy":{"xms":"{{memory.proxy}}","xmx":"{{memory.proxy}}"},"zookeeper":{"xms":"{{memory.zookeeper}}","xmx":"{{memory.zookeeper}}"},"director":{"xms":"{{memory.director}}","xmx":"{{memory.director}}"},"constructor":{"xms":"{{memory.constructor}}","xmx":"{{memory.constructor}}"},"admin-console":{"xms":"{{memory.adminconsole}}","xmx":"{{memory.adminconsole}}"}}'
+
+  - name: Install Elastic Cloud Enterprise
+    block:
+      - include_tasks: primary.yml
+        when: ece_primary is defined and ece_primary
+    
+      - include_tasks: secondary.yml
+        when: ece_primary is undefined or not ece_primary
+    
+      - debug:
+          msg: "Adminconsole is reachable at: https://{{ inventory_hostname }}:12443"
+        when: ece_primary is defined and ece_primary
+      - debug:
+            msg: "Adminconsole password is: {{ adminconsole_root_password }}"
+        when: ece_primary is defined and ece_primary
+    when: runner_directories.changed

@@ -1,0 +1,10 @@
+---
+  - hosts: proxies
+    gather_facts: true
+    roles:
+        - pre-requisites
+
+  - hosts: proxies
+    gather_facts: true
+    roles:
+        - ece-install

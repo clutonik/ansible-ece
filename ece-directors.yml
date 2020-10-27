@@ -1,0 +1,10 @@
+---
+  - hosts: directors
+    gather_facts: true
+    roles:
+        - pre-requisites
+
+  - hosts: directors
+    gather_facts: true
+    roles:
+        - ece-install

@@ -1,0 +1,10 @@
+---
+  - hosts: allocators
+    gather_facts: true
+    roles:
+        - pre-requisites
+
+  - hosts: allocators
+    gather_facts: true
+    roles:
+        - ece-install

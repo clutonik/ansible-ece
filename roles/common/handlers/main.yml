@@ -1,0 +1,28 @@
+---
+  - name: Restart network service
+    become: yes
+    service:
+        name: systemd-networkd
+        state: restarted
+    listen: restart network service
+
+  - name: Reload docker daemon
+    become: yes
+    systemd:
+      daemon_reload: yes
+      name: docker
+    listen: reload docker daemon
+
+  - name: Stop docker
+    become: yes
+    systemd:
+      name: docker
+      state: stopped
+    listen: stop docker
+
+  - name: Restart docker
+    become: yes
+    systemd:
+      name: docker
+      state: restarted
+    listen: restart docker

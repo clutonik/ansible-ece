@@ -1,0 +1,20 @@
+---
+
+  - name: Get Roles token
+    shell: "eceRolesToken -coordinator-host {{ coordinator_host }} -ece-password {{ ece_password }} -ece-user {{ ece_user }} -runner-role {{ role }}"
+    environment:
+      PATH: '$PATH:/usr/sbin:/bin:/usr/bin:/root/go/bin' # Have to use it because ansible switches to elastic user using sudo su -, PATH is not set properly. 
+    register: getToken
+
+  - debug:
+      var: getToken
+
+  - name: install ECE on secondary hosts
+    become: yes
+    become_user: elastic
+    shell: "/tmp/elastic-cloud-enterprise.sh install --cloud-enterprise-version \"{{ ece_platform.version }}\" 
+    --docker-registry \"{{ ece_docker_registry }}\" --runner-id {{ runner_name }} --coordinator-host \"{{ coordinator_host }}\" 
+    --roles-token \"{{ getToken.stdout }}\" --roles \"{{ role }}\" --availability-zone \"{{ zone }}\" --memory-settings \"{{ memory_settings }}\""
+    register: result
+    environment:
+      PATH: '$PATH:/usr/sbin:/bin:/usr/bin' # Have to use it because ansible switches to elastic user using sudo su -, PATH is not set properly. 
